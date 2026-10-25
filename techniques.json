@@ -1,0 +1,219 @@
+{
+  "techniques": [
+    {
+      "id": "sky",
+      "name": "物理天空＋環境光",
+      "source": "Minamo：把太陽從 HDRI 抽成平行光｜Pond Line：cube light probe",
+      "what": "用 Preetham 物理天空（SkyMesh）當背景，再用 CubeCamera 把天空拍成環境貼圖，給所有 PBR 材質當環境光。拍的時候先關掉太陽圓盤，避免和平行光重複計算（Minamo 的做法）。關掉這項就是常見的「灰色背景＋AmbientLight」。",
+      "prompt": "背景用物理天空（three.js SkyMesh），再用 CubeCamera 把天空拍成環境貼圖，給所有材質當環境光；拍的時候先關掉太陽圓盤，太陽只由平行光負責，方向必須和天空的太陽位置一致。不要用 AmbientLight 補光。",
+      "view": "fjord"
+    },
+    {
+      "id": "tonemap",
+      "name": "色調映射（AgX / Neutral）",
+      "source": "Minamo：AgX＋自動曝光｜Pond Line：Neutral＋曝光 0.88",
+      "what": "HDR 畫面一定要經過色調映射才能輸出。直接截斷的話，太陽和雪地會整片死白、顏色也會變。AgX 偏寫實、會稍微降飽和；Neutral 比較保留原本的顏色。",
+      "prompt": "輸出前一定要 tone mapping，用 AgX（寫實）或 Neutral（保色），不能直接 clamp；曝光要和天空亮度校準，讓雪地亮部不死白。",
+      "view": "water"
+    },
+    {
+      "id": "shadow",
+      "name": "柔和陰影",
+      "source": "Minamo：4096 陰影貼圖、只讓粗模投影",
+      "what": "平行光開啟 PCF 柔和陰影（WebGPU 版的 PCFShadowMap 本身就是柔和的），貼圖 4096²，陰影相機框住鏡頭周圍約 1.6 km。低角度的太陽會把山影和小屋的長影子投在雪地上。",
+      "prompt": "平行光開陰影：WebGPU 用 PCFShadowMap（PCFSoft 已併入），mapSize 4096，陰影相機框住鏡頭周圍約 1.5 km，並跟著鏡頭移動；用低角度太陽做出長影子；調好 bias / normalBias，不能有陰影粉刺。",
+      "view": "village"
+    },
+    {
+      "id": "snow",
+      "name": "程序化雪坡＋濕潤帶",
+      "source": "Minamo：水線上方的濕潤帶（albedo ×0.55、roughness ×0.35）",
+      "what": "山的材質完全用 TSL 程序化：坡度＋高度＋fbm 噪聲決定哪裡積雪，陡坡露出岩石。水線上方 1.5 m 是濕潤帶，顏色變深、表面變亮，也不積雪。",
+      "prompt": "地形材質用 TSL 程序化：用法線的 y（坡度）＋高度＋fbm 噪聲決定積雪，陡坡露出深色岩石；水線上方約 1.5 m 做濕潤帶（albedo ×0.55、roughness ×0.35），並用噪聲打散邊緣，不要畫成一條直線。",
+      "view": "fjord"
+    },
+    {
+      "id": "water",
+      "name": "物理水面",
+      "source": "Pond Line：平面反射＋波浪擾動｜Minamo：Fresnel、太陽閃光、依像素足跡淡化",
+      "what": "水面用 reflector 平面反射，再用解析波浪的法線擾動反射 UV。用 Fresnel 混合深水色和反射；太陽閃光用很窄的高光，並且 clamp。每道波都依像素足跡淡化，遠方水面才不會閃爍。",
+      "prompt": "水面用 reflector() 平面反射（解析度 0.5），用 6 道解析波的法線擾動反射 UV，偏移量要有上限；用 Fresnel（F0=0.02）混合深水色和反射；太陽閃光用窄高光並 clamp，避免 HDR 溢位；每道波依 fwidth 像素足跡淡化，遠方才不會閃爍。",
+      "view": "water"
+    },
+    {
+      "id": "ice",
+      "name": "冰的透光感",
+      "source": "Minamo：Beer–Lambert 吸收、前向散射｜藝術指導",
+      "what": "浮冰頂面是積雪的白色，側面是冰藍色，越接近水面越藍（Beer–Lambert 吸收）。逆光時，側面會加上次表面透光的青色光暈；側面濕亮，頂面霧面。",
+      "prompt": "冰的材質：頂面（法線朝上）是雪白、霧面；側面是冰藍、roughness 約 0.12，越接近水面越藍（Beer–Lambert）；逆光時用 pow(dot(-視線, 太陽), 6) 做次表面透光，讓冰的側面發出青色光。",
+      "view": "ice"
+    },
+    {
+      "id": "bevel",
+      "name": "倒角幾何",
+      "source": "Pond Line：所有東西都有圓角、倒角",
+      "what": "小屋用 RoundedBox，屋頂和浮冰用 Extrude 加 bevel。邊緣會接到高光，看起來才像真實物體；完全銳利的直角邊是「CG 感」最常見的來源。",
+      "prompt": "所有人造物和冰塊都要倒角或圓角（RoundedBoxGeometry、ExtrudeGeometry 的 bevel），不能有完全銳利的直角邊，邊緣要能接到高光。",
+      "view": "village"
+    },
+    {
+      "id": "lights",
+      "name": "暖色窗光（冷暖對比）",
+      "source": "藝術指導：thebuggeddev 的冰峽灣「warm windows glowing against the cold」",
+      "what": "在冷藍色的場景裡，讓小屋窗戶發出暖橘色光，強度用 HDR（遠大於 1），並在屋前放暖色點光照亮雪地。水面會反射出暖色光點。",
+      "prompt": "冷色場景裡做冷暖對比：小屋窗戶用暖橘色自發光（HDR 強度約 6，給 Bloom 用），每間屋前放一盞暖色點光照亮雪地，水面要反射出這些暖色光點。",
+      "view": "village"
+    },
+    {
+      "id": "fog",
+      "name": "空氣透視＋高度霧",
+      "source": "Minamo：散射的解析解｜Pond Line：地平線霧帶",
+      "what": "自訂 fogNode：霧的密度依距離和高度遞減，所以低處和遠處比較濃。霧的顏色朝太陽方向偏暖、背光方向偏藍，遠方的山會一層一層變淡、變藍。",
+      "prompt": "加自訂 fogNode：密度 = 距離 × exp(−高度/350 m) 的指數霧；顏色依視線和太陽的夾角，在藍灰色和暖橘色之間混合，讓遠山一層層變淡變藍、太陽方向起霧光。天空本身不套霧。",
+      "view": "fjord"
+    },
+    {
+      "id": "motion",
+      "name": "微動態（飄雪／浮冰／波浪）",
+      "source": "Minamo：漂浮鏡頭、海雪粒子｜Pond Line：陣風",
+      "what": "水波持續流動，浮冰慢慢漂移、上下浮動並輕微傾斜，6,000 片雪花用 instancing 包在鏡頭周圍循環飄落。靜態截圖裡只看得到飄雪，實際操作時差最多。",
+      "prompt": "所有東西都要有微動態：水波隨時間流動、浮冰以每秒約 0.2 m 漂移並上下浮動和傾斜；飄雪用 instanced 粒子（約 6,000 片）放在跟著鏡頭的方盒裡用 mod 循環，加上隨機橫向飄移。",
+      "view": "water"
+    },
+    {
+      "id": "bloom",
+      "name": "Bloom＋暖色光暈",
+      "source": "Pond Line：bloom 再乘暖色做光暈｜Minamo：13-tap 降採樣 Bloom",
+      "what": "只讓窗燈、太陽閃光這類超過 1 的 HDR 亮部發光，再乘一點暖色，做出底片般的光暈（halation）。",
+      "prompt": "後製加 HDR Bloom（strength 約 0.3、threshold 約 0.9），只讓超過 1 的亮部發光，Bloom 再乘一點暖色 (1.0, 0.82, 0.6) 做成光暈。",
+      "view": "village"
+    },
+    {
+      "id": "grade",
+      "name": "調色（分離色調）",
+      "source": "Pond Line：白平衡、飽和度 1.25、亮部偏金暗部偏青、S 曲線",
+      "what": "色調映射之後再調色：先調白平衡，飽和度補回 AgX 降掉的部分，亮部偏金、暗部偏青的分離色調，再加一點 S 曲線，做出電影感。",
+      "prompt": "tone mapping 之後做調色：白平衡、飽和度 ×1.2、分離色調（亮部偏金、暗部偏青）、約 30% 的 S 曲線，做出電影感的冷暖對比。",
+      "view": "fjord"
+    },
+    {
+      "id": "lens",
+      "name": "鏡頭質感（暗角／顆粒／色差）",
+      "source": "Minamo：暗角 0.25、顆粒 0.012｜Pond Line：色差 0.0016",
+      "what": "最後加暗角、細微的底片顆粒，以及很輕微的色差，讓畫面像相機拍出來的，而不是完美的 CG。",
+      "prompt": "最後一步加鏡頭質感：暗角約 0.25、底片顆粒約 0.012（每格變化）、極輕微色差約 0.0016（越靠畫面邊緣越明顯）。",
+      "view": "village"
+    }
+  ],
+  "presets": [
+    {
+      "id": "raw",
+      "name": "原始（AI 第一版常見樣子）",
+      "desc": "所有技巧關閉：灰色背景＋AmbientLight、沒有陰影、純色材質、直接截斷顏色。大多數模型第一次產出的 three.js 場景就長這樣。",
+      "prompt": "用 three.js 做一個冰峽灣場景，有山、水、浮冰和小木屋。",
+      "state": {
+        "sky": false,
+        "shadow": false,
+        "snow": false,
+        "water": false,
+        "ice": false,
+        "bevel": false,
+        "lights": false,
+        "fog": false,
+        "motion": false,
+        "bloom": false,
+        "tonemap": false,
+        "grade": false,
+        "lens": false,
+        "toneMode": "agx"
+      }
+    },
+    {
+      "id": "minamo",
+      "name": "Minamo 式・物理寫實",
+      "desc": "以物理正確為主：物理天空、真實係數、AgX、暗角和顆粒，不做風格化調色，畫面偏冷、偏紀錄片。",
+      "prompt": "風格：物理寫實、紀錄片感。所有光線和材質用真實單位和係數，tone mapping 用 AgX，只加暗角和底片顆粒，不做風格化調色，Bloom 要很克制。",
+      "state": {
+        "sky": true,
+        "shadow": true,
+        "snow": true,
+        "water": true,
+        "ice": true,
+        "bevel": true,
+        "lights": true,
+        "fog": true,
+        "motion": true,
+        "bloom": true,
+        "tonemap": true,
+        "grade": false,
+        "lens": true,
+        "toneMode": "agx",
+        "bloomStrength": 0.12,
+        "ca": 0
+      }
+    },
+    {
+      "id": "pondline",
+      "name": "Pond Line 式・藝術調色",
+      "desc": "物理只是基底，最後交給藝術指導：Neutral 保色、暖色光暈、分離色調、飽和度拉高，畫面像動畫電影的關鍵影格。",
+      "prompt": "風格：電影感、偏夢幻。tone mapping 用 Neutral，Bloom 加暖色光暈，調色用亮部偏金暗部偏青的分離色調，飽和度 ×1.25，加輕微色差和暗角。物理正確和好看衝突時，以好看為主。",
+      "state": {
+        "sky": true,
+        "shadow": true,
+        "snow": true,
+        "water": true,
+        "ice": true,
+        "bevel": true,
+        "lights": true,
+        "fog": true,
+        "motion": true,
+        "bloom": true,
+        "tonemap": true,
+        "grade": true,
+        "lens": true,
+        "toneMode": "neutral",
+        "bloomStrength": 0.35
+      }
+    },
+    {
+      "id": "full",
+      "name": "全開（AgX＋調色）",
+      "desc": "全部技巧都開：AgX 寫實的底，再加上分離色調和鏡頭質感。",
+      "prompt": "把技巧清單全部套用：物理天空＋環境光、柔和陰影、程序化雪坡、物理水面、冰的透光、倒角、暖色窗光、空氣透視、微動態、Bloom、AgX、分離色調、鏡頭質感。",
+      "state": {
+        "sky": true,
+        "shadow": true,
+        "snow": true,
+        "water": true,
+        "ice": true,
+        "bevel": true,
+        "lights": true,
+        "fog": true,
+        "motion": true,
+        "bloom": true,
+        "tonemap": true,
+        "grade": true,
+        "lens": true,
+        "toneMode": "agx"
+      }
+    }
+  ],
+  "views": [
+    {
+      "id": "village",
+      "name": "漁村近景"
+    },
+    {
+      "id": "fjord",
+      "name": "峽灣全景"
+    },
+    {
+      "id": "water",
+      "name": "低角度水面"
+    },
+    {
+      "id": "ice",
+      "name": "浮冰特寫"
+    }
+  ]
+}
