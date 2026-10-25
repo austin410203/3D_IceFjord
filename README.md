@@ -6,6 +6,7 @@
 - PDF 手冊：`冰峽灣_渲染樣張與Prompt手冊.pdf`（開／關對照圖＋prompt）
 - 研究筆記：`doc/3D渲染技巧清單_Minamo_Pondline.md`
 - **潮聲島版**（`tidesong/`）：把 Unity 遊戲《潮聲島》的漁村、碼頭、潟湖和瀑布用網頁重建，套用 15 項技巧（新增：依水深吸收的潟湖、海床焦散、岸邊泡沫、植被密度＋風、遊戲原本的手繪描邊），有 3 個時段和 5 種風格預設。互動版：https://3d-icefjord.austin410203.workers.dev/tidesong/ ；和 Unity 原版的對照圖在 `tidesong/compare/`。
+- **八種風格**（`styles/`）：同一座小漁屋島嶼，切換寫實電影感、微縮移軸、等距方塊、繪本水彩、Cozy 卡通、夢幻調色、暗調電影、設計感圖鑑 8 種畫風；樹是一片一片葉子長出來的，水裡有會擺尾的 3D 魚。互動版：https://3d-icefjord.austin410203.workers.dev/styles/ ；總覽圖在 `styles/board/`。
 
 three.js r186（WebGPURenderer + TSL），不需要建置，用 import map 從 CDN 載入。所有開關都是 uniform 或 visible，切換時不會重新編譯 shader。
 

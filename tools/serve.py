@@ -38,7 +38,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.wfile.write(b"ok")
 
     def log_message(self, fmt, *args):
-        if "POST" in (args[0] if args else ""):
+        if "POST" in str(args[0] if args else ""):
             super().log_message(fmt, *args)
 
 

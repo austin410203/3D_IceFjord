@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>同一座島・八種風格</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+<style>
+  :root { --panel: rgba(12, 18, 26, 0.8); --line: rgba(160, 200, 230, 0.16); --text: #e6eef5; --muted: #8fa3b5; --accent: #ffb070; --cold: #7fd3ff; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1118; color: var(--text);
+    font: 14px/1.5 "Microsoft JhengHei", "Noto Sans TC", "PingFang TC", system-ui, sans-serif; }
+  #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  #loader { position: fixed; inset: 0; display: grid; place-items: center; background: #0b1118; z-index: 5; transition: opacity .6s; }
+  #loader.gone { opacity: 0; pointer-events: none; }
+  #panel { position: fixed; top: 12px; right: 12px; bottom: 12px; width: 330px; display: flex; flex-direction: column;
+    background: var(--panel); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--line); border-radius: 14px; z-index: 3; overflow: hidden; }
+  #panel.hidden { display: none; }
+  header { padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
+  header h1 { margin: 0; font-size: 17px; font-weight: 600; }
+  header p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+  header a { color: var(--accent); text-decoration: none; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .chip { border: 1px solid var(--line); background: rgba(255,255,255,0.04); color: var(--text); padding: 5px 10px; border-radius: 999px; font: inherit; font-size: 13px; cursor: pointer; }
+  .chip:hover { border-color: var(--cold); }
+  .chip.on { background: var(--accent); color: #1b1006; border-color: var(--accent); font-weight: 600; }
+  #info { padding: 12px 16px; overflow-y: auto; flex: 1; }
+  #info h2 { margin: 0 0 4px; font-size: 16px; }
+  #info .refs { color: var(--cold); font-size: 12px; margin-bottom: 8px; }
+  #info .look { color: #c7d3de; font-size: 13px; margin: 0 0 10px; }
+  #info ul { margin: 0 0 10px; padding-left: 18px; color: #c7d3de; font-size: 13px; }
+  #info .label { color: var(--accent); font-size: 11px; letter-spacing: .14em; margin-bottom: 3px; }
+  #info .prompt { font-size: 13px; background: rgba(255,176,112,0.08); border-left: 2px solid var(--accent); padding: 6px 8px; border-radius: 4px; margin: 0; }
+  #hud { position: fixed; left: 14px; bottom: 12px; color: rgba(230,238,245,0.7); font-size: 12px; z-index: 2; text-shadow: 0 1px 2px #000; }
+  #toggle { position: fixed; top: 12px; right: 12px; z-index: 4; display: none; }
+  #panel.hidden ~ #toggle { display: block; }
+  body.capture #panel, body.capture #hud, body.capture #toggle { display: none !important; }
+
+  /* editorial overlay: only shown in the 設計感圖鑑 style */
+  #editorial { position: fixed; left: 6vw; top: 50%; transform: translateY(-50%); width: min(36vw, 520px); z-index: 2; color: #2a2620; display: none; }
+  body.style-editorial #editorial { display: block; }
+  #editorial .kicker { font: italic 500 18px/1 "Cormorant Garamond", serif; letter-spacing: .08em; color: #9a6b3f; }
+  #editorial h2 { font: 700 clamp(34px, 4.4vw, 64px)/1.08 "Noto Serif TC", serif; margin: 14px 0 10px; letter-spacing: .02em; }
+  #editorial .sub { font: 500 15px/1.7 "Noto Serif TC", serif; color: #5a5248; margin: 0 0 26px; max-width: 30em; }
+  #editorial dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 22px; margin: 0 0 24px; border-top: 1px solid #d9cfbf; padding-top: 18px; font-size: 13px; }
+  #editorial dt { color: #9a8f80; letter-spacing: .12em; font-size: 11px; padding-top: 2px; }
+  #editorial dd { margin: 0; color: #2a2620; }
+  #editorial .tags { display: flex; gap: 8px; flex-wrap: wrap; }
+  #editorial .tags span { border: 1px solid #c9b9a2; border-radius: 999px; padding: 4px 12px; font-size: 12px; color: #6b5a44; }
+  #editorial .no { position: absolute; left: 0; top: -70px; font: italic 500 72px/1 "Cormorant Garamond", serif; color: #e3d6c3; }
+  @media (max-width: 720px) {
+    #panel { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; height: 46vh; }
+    #editorial { top: 16px; transform: none; width: auto; right: 16px; }
+    #editorial h2 { font-size: 30px; } #editorial dl, #editorial .sub { display: none; }
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.webgpu.js",
+    "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.webgpu.js",
+    "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.tsl.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="loader"><div>正在幫小島換衣服…</div></div>
+
+<section id="editorial">
+  <div class="no">No.07</div>
+  <div class="kicker">Tidesong Isle · Field Guide</div>
+  <h2>潮聲島・<br>小漁屋</h2>
+  <p class="sub">漲潮時，碼頭最末端那根木樁剛好碰到水面。漁屋的提燈從傍晚亮到天明，是島上唯一的燈塔。</p>
+  <dl>
+    <dt>面積</dt><dd>40 × 40 m（含潟湖）</dd>
+    <dt>建築</dt><dd>漁屋 × 1、木碼頭 × 1、划艇 × 1</dd>
+    <dt>植被</dt><dd>圓冠樹 × 4、松樹 × 5、草地約 9,000 叢</dd>
+    <dt>水深</dt><dd>岸邊 0.3 m → 外緣 2.4 m</dd>
+  </dl>
+  <div class="tags"><span>島嶼</span><span>漁村</span><span>Cozy</span><span>three.js</span></div>
+</section>
+
+<aside id="panel">
+  <header>
+    <h1>同一座島・八種風格</h1>
+    <p>同一個場景，只換「怎麼畫」。每一種都附上下次這樣提示我的 prompt。 <a href="../">← 冰峽灣</a> · <a href="../tidesong/">潮聲島</a></p>
+  </header>
+  <div class="chips" id="styles"></div>
+  <div id="info"></div>
+</aside>
+<button class="chip" id="toggle">顯示面板</button>
+<div id="hud"></div>
+
+<script type="module" src="./main.js"></script>
+</body>
+</html>
