@@ -1,0 +1,173 @@
+{
+  "techniques": [
+    {
+      "id": "sky",
+      "name": "物理天空＋環境光",
+      "source": "Minamo：太陽從天空抽出來交給平行光｜Pond Line：cube light probe",
+      "what": "背景用 Preetham 物理天空，再用 CubeCamera 拍成環境貼圖當環境光。時段改變時重拍一次，所以午後、黃金時刻、藍調時刻的環境光顏色都會跟著天空變。",
+      "prompt": "背景用物理天空（SkyMesh），再用 CubeCamera 拍成環境貼圖給所有材質；拍之前先關掉太陽圓盤，太陽交給平行光，方向要一致；切換時段時重拍環境貼圖。",
+      "view": "village"
+    },
+    {
+      "id": "tonemap",
+      "name": "色調映射（AgX / Neutral）",
+      "source": "Minamo：AgX＋自動曝光｜Pond Line：Neutral＋曝光 0.88",
+      "what": "HDR 畫面一定要先經過色調映射。關掉時，白牆、沙灘和太陽反光會整片死白，藍綠色的潟湖也會偏成螢光色。",
+      "prompt": "第一步就定好色彩管線：輸出用 AgX（寫實）或 Neutral（保色），每個時段各自校準曝光，白牆和沙灘的亮部不能死白。",
+      "view": "lagoon"
+    },
+    {
+      "id": "shadow",
+      "name": "柔和陰影",
+      "source": "Minamo：4096 陰影貼圖",
+      "what": "平行光開 PCF 陰影，貼圖 4096²，陰影相機跟著視角移動。屋簷、樹和碼頭的影子讓畫面有立體感。",
+      "prompt": "平行光開陰影（WebGPU 用 PCFShadowMap），mapSize 4096，陰影相機框住視角周圍約 600 m 並跟著移動；調好 bias，不能有陰影粉刺。",
+      "view": "village"
+    },
+    {
+      "id": "ground",
+      "name": "程序化地表＋濕沙帶",
+      "source": "Minamo：水線上方的濕潤帶｜Pond Line：多層堆疊",
+      "what": "草地依噪聲混合深綠、黃綠和乾草色，陡坡露出有層理的岩石，小路是泥土色。沙灘靠水的那一圈是顏色較深、表面反光的濕沙，邊緣會隨著浪前後移動。",
+      "prompt": "地表材質用 TSL 程序化：草地依 fbm 噪聲混合 3 種綠，陡坡露出有層理的岩石，小路用頂點屬性標出泥土；水線上方約 0.6 m 做濕沙帶（albedo ×0.6、roughness 0.3），邊緣跟著浪移動。",
+      "view": "lagoon"
+    },
+    {
+      "id": "water",
+      "name": "潟湖水體（依水深吸收＋看得到海床）",
+      "source": "Minamo：RGB 分開的吸收／散射係數（Jerlov 熱帶海水）＋單次散射",
+      "what": "把地形高度烘成貼圖，水面 shader 沿折射方向找到海床，計算光在水裡走了多遠，再依 RGB 分開吸收：淺處看得到白沙，越深越藍綠，再深變深藍。這是潮聲島原本做法（半透明藍綠平面）和寫實版差最多的地方。",
+      "prompt": "水面不要用半透明平面。把地形高度烘成 HalfFloat 貼圖，水面 shader 沿 refract 方向找到海床點，依光程用 Beer–Lambert 做 RGB 吸收（σa≈(0.42,0.065,0.025)、σs≈(0.02,0.03,0.045)/m），加上單次散射的水體顏色，再用 Fresnel 混合 reflector 反射。",
+      "view": "topdown"
+    },
+    {
+      "id": "caustics",
+      "name": "海床焦散",
+      "source": "Minamo／Pond Line：水面波浪把陽光聚成網狀光紋",
+      "what": "淺水的沙地上有會流動的網狀光紋。兩層 Worley 噪聲的 F2−F1 邊緣做出光網，亮度隨水深衰減。這裡用的是程序化近似，不是 Minamo 那種用折射網格算面積比的精確做法。",
+      "prompt": "海床加焦散：用兩層移動中的 Worley 噪聲取 F2−F1 的細邊緣做光網，乘上陽光經過水深衰減後的強度，水越深越淡、越模糊；如果要精確，就用 Minamo 的面積比法（把網格折射後投到地面）。",
+      "view": "topdown"
+    },
+    {
+      "id": "foam",
+      "name": "岸邊泡沫與拍岸",
+      "source": "潮聲島原本的岸邊碎浪（SDF）＋Minamo 依深度淡化",
+      "what": "依水深畫出拍岸的泡沫帶，一圈一圈往岸上推，用噪聲打散成不規則的泡沫，岸邊的濕沙也跟著浪變深。",
+      "prompt": "依水深做岸邊泡沫：深度 < 1.5 m 時，用 sin(深度×6 − 時間) 做往岸上推的浪線，再用噪聲打散成泡沫；最靠岸的 0.3 m 要有一條持續的白沫線。",
+      "view": "lagoon"
+    },
+    {
+      "id": "bevel",
+      "name": "倒角幾何",
+      "source": "Pond Line：所有東西都有圓角",
+      "what": "房子用 RoundedBox，屋頂、碼頭木板用 Extrude bevel。邊緣接到高光，看起來才不像積木。",
+      "prompt": "房子、屋頂、碼頭、攤位都要倒角或圓角（RoundedBoxGeometry、ExtrudeGeometry bevel），不能有完全銳利的直角邊。",
+      "view": "village"
+    },
+    {
+      "id": "density",
+      "name": "植被密度＋風",
+      "source": "Pond Line：多層堆疊＋陣風沿著走道傳過去",
+      "what": "用 instancing 種約 6 萬根草和上千棵樹，草尖顏色比較亮。陣風是一波一波往同方向推過去，所以相鄰的草和樹會一起倒，再疊上各自的小抖動。",
+      "prompt": "草地用 instanced 草葉（約 6 萬根，草根深、草尖亮），樹用 instancing；風用世界空間的陣風波往同一方向傳遞，再疊上每株各自的相位，搖擺幅度和高度平方成正比。",
+      "view": "village"
+    },
+    {
+      "id": "lights",
+      "name": "暖燈（窗光＋燈串）",
+      "source": "藝術指導：冷暖對比｜潮聲島原本的節慶燈串",
+      "what": "窗戶和廣場燈串用 HDR 暖色自發光，路燈是暖色點光。到黃金時刻和藍調時刻會自動變亮，水面也會反射出光點。",
+      "prompt": "窗戶和燈串用暖橘色 HDR 自發光（給 Bloom 用），路燈用暖色點光；亮度依時段自動調整（白天 0.15、黃昏 0.6、藍調 1.0），水面要反射出燈光。",
+      "view": "village"
+    },
+    {
+      "id": "fog",
+      "name": "空氣透視＋高度霧",
+      "source": "Minamo：散射的解析解｜Pond Line：地平線霧帶",
+      "what": "霧的密度依距離和高度變化，顏色朝太陽方向偏暖。遠方的山和海平線會變淡、融進天空。",
+      "prompt": "自訂 fogNode：距離 × exp(−高度/120 m) 的指數霧，顏色依視線和太陽的夾角混合，每個時段一組霧色；天空不套霧。",
+      "view": "sunset"
+    },
+    {
+      "id": "bloom",
+      "name": "Bloom＋暖色光暈",
+      "source": "Pond Line：bloom 乘暖色做光暈",
+      "what": "只讓燈、太陽反光這類超過 1 的亮部發光，再乘一點暖色，做出底片般的光暈。",
+      "prompt": "後製加 HDR Bloom（strength 約 0.3、threshold 約 1），只讓超過 1 的亮部發光，Bloom 再乘一點暖色 (1.0, 0.82, 0.6)。",
+      "view": "sunset"
+    },
+    {
+      "id": "grade",
+      "name": "調色（分離色調）",
+      "source": "Pond Line：白平衡、飽和度、亮部偏金暗部偏青、S 曲線",
+      "what": "色調映射之後再做白平衡、補回飽和度、亮部偏金暗部偏青的分離色調，加上輕微 S 曲線。",
+      "prompt": "tone mapping 之後調色：白平衡、飽和度 ×1.2、分離色調（亮部偏金、暗部偏青）、約 30% 的 S 曲線。",
+      "view": "village"
+    },
+    {
+      "id": "lens",
+      "name": "鏡頭質感（暗角／顆粒／色差）",
+      "source": "Minamo：暗角 0.25、顆粒 0.012｜Pond Line：色差 0.0016",
+      "what": "最後加暗角、細微的底片顆粒和極輕微的色差。",
+      "prompt": "最後一步加暗角約 0.25、底片顆粒約 0.012（每格變化）、極輕微色差約 0.0016。",
+      "view": "lagoon"
+    },
+    {
+      "id": "outline",
+      "name": "手繪描邊（遊戲原本的風格）",
+      "source": "潮聲島：InkOutline 全螢幕描邊",
+      "what": "用深度的拉普拉斯運算找出輪廓，畫上深色線條，模擬遊戲裡「手繪描邊」的效果。可以和寫實技巧疊加，做出「寫實光影＋插畫線條」的混合風格。",
+      "prompt": "後製加描邊：取場景深度，用 4 鄰點的拉普拉斯值除以深度判斷輪廓，超過門檻就畫深色線條（顏色取暗部的深藍褐色，不要純黑），線寬固定 1 px。",
+      "view": "village"
+    }
+  ],
+  "tods": [
+    { "id": "day", "name": "午後" },
+    { "id": "golden", "name": "黃金時刻" },
+    { "id": "blue", "name": "藍調時刻" }
+  ],
+  "presets": [
+    {
+      "id": "game",
+      "name": "近似遊戲原本",
+      "desc": "模擬潮聲島 Unity 版現在的樣子：明亮午後、平塗地表、半透明的藍綠水面、手繪描邊，沒有水深吸收、焦散和調色。",
+      "prompt": "（原本的做法）島嶼、半透明藍綠色水面、平塗草地和沙灘、描邊。",
+      "state": { "sky": true, "tonemap": true, "toneMode": "aces", "shadow": true, "ground": false, "water": false, "caustics": false, "foam": false, "bevel": false, "density": false, "lights": false, "fog": false, "bloom": false, "grade": false, "lens": false, "outline": true, "tod": "day" }
+    },
+    {
+      "id": "raw",
+      "name": "原始",
+      "desc": "所有技巧都關掉，灰色背景加 AmbientLight。",
+      "prompt": "用 three.js 做一個有漁村、碼頭和潟湖的小島。",
+      "state": { "sky": false, "tonemap": false, "shadow": false, "ground": false, "water": false, "caustics": false, "foam": false, "bevel": false, "density": false, "lights": false, "fog": false, "bloom": false, "grade": false, "lens": false, "outline": false, "toneMode": "agx", "tod": "day" }
+    },
+    {
+      "id": "minamo",
+      "name": "Minamo 式・物理寫實",
+      "desc": "以物理正確為主：水深吸收、焦散、AgX，只加暗角和顆粒，不做風格化調色，也不描邊。",
+      "prompt": "風格：物理寫實。水體用真實的 RGB 吸收／散射係數，tone mapping 用 AgX，只加暗角和顆粒，Bloom 要很克制，不描邊。",
+      "state": { "sky": true, "tonemap": true, "toneMode": "agx", "shadow": true, "ground": true, "water": true, "caustics": true, "foam": true, "bevel": true, "density": true, "lights": true, "fog": true, "bloom": true, "grade": false, "lens": true, "outline": false, "bloomStrength": 0.12, "ca": 0, "tod": "golden" }
+    },
+    {
+      "id": "pondline",
+      "name": "Pond Line 式・藝術調色",
+      "desc": "物理只是基底，最後交給藝術指導：Neutral 保色、暖色光暈、分離色調，畫面像動畫電影的關鍵影格。",
+      "prompt": "風格：電影感、偏夢幻。tone mapping 用 Neutral，Bloom 加暖色光暈，調色用亮部偏金暗部偏青的分離色調，飽和度 ×1.25；物理正確和好看衝突時，以好看為主。",
+      "state": { "sky": true, "tonemap": true, "toneMode": "neutral", "shadow": true, "ground": true, "water": true, "caustics": true, "foam": true, "bevel": true, "density": true, "lights": true, "fog": true, "bloom": true, "grade": true, "lens": true, "outline": false, "bloomStrength": 0.35, "tod": "golden" }
+    },
+    {
+      "id": "storybook",
+      "name": "寫實光影＋描邊",
+      "desc": "把寫實的水、光和植被，和遊戲原本的描邊疊在一起，最接近潮聲島概念圖（concept_3d_target）那種插畫感。",
+      "prompt": "風格：插畫感的寫實。光影、水體、植被照寫實技巧做，最後加深藍褐色的 1 px 描邊和分離色調，Neutral tone mapping。",
+      "state": { "sky": true, "tonemap": true, "toneMode": "neutral", "shadow": true, "ground": true, "water": true, "caustics": true, "foam": true, "bevel": true, "density": true, "lights": true, "fog": true, "bloom": true, "grade": true, "lens": true, "outline": true, "bloomStrength": 0.25, "tod": "day" }
+    }
+  ],
+  "views": [
+    { "id": "village", "name": "漁村全景" },
+    { "id": "lagoon", "name": "碼頭潟湖" },
+    { "id": "topdown", "name": "俯瞰釣魚" },
+    { "id": "sunset", "name": "海上夕陽" },
+    { "id": "waterfall", "name": "瀑布" }
+  ]
+}
